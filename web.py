@@ -72,6 +72,13 @@ INDEX_HTML = r"""<!doctype html>
     margin-bottom: 14px;
     color: var(--accent);
   }
+  @keyframes blink-result {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+  #status.blink {
+    animation: blink-result 0.45s ease-in-out 3;
+  }
   #board {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -132,6 +139,14 @@ let locked = false;
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
 
+function setStatus(text, blink = false) {
+  // Remove class first and force a reflow so the animation can re-trigger.
+  statusEl.classList.remove("blink");
+  void statusEl.offsetWidth;
+  statusEl.textContent = text;
+  if (blink) statusEl.classList.add("blink");
+}
+
 function render() {
   boardEl.innerHTML = "";
   board.forEach((v, i) => {
@@ -154,7 +169,7 @@ function render() {
 async function play(i) {
   if (locked || board[i] !== " ") return;
   locked = true;
-  statusEl.textContent = "AI is thinking...";
+  setStatus("AI is thinking...");
   try {
     const res = await fetch("/api/move", {
       method: "POST",
@@ -163,19 +178,19 @@ async function play(i) {
     });
     const data = await res.json();
     if (!res.ok) {
-      statusEl.textContent = data.error || "Error";
+      setStatus(data.error || "Error");
       locked = false;
       render();
       return;
     }
     board = data.board;
     render();
-    if (data.winner === "X") { statusEl.textContent = "You win! \u{1F389}"; }
-    else if (data.winner === "O") { statusEl.textContent = "AI wins."; }
-    else if (data.winner === "draw") { statusEl.textContent = "Draw."; }
-    else { statusEl.textContent = "Your move."; locked = false; }
+    if (data.winner === "X") { setStatus("You win! \u{1F389}", true); }
+    else if (data.winner === "O") { setStatus("AI wins.", true); }
+    else if (data.winner === "draw") { setStatus("Draw.", true); }
+    else { setStatus("Your move."); locked = false; }
   } catch (e) {
-    statusEl.textContent = "Network error.";
+    setStatus("Network error.");
     locked = false;
     render();
   }
@@ -184,7 +199,7 @@ async function play(i) {
 function reset() {
   board = Array(9).fill(" ");
   locked = false;
-  statusEl.textContent = "Your move.";
+  setStatus("Your move.");
   render();
 }
 
